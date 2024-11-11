@@ -8,7 +8,6 @@ import util.Util;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Stream;
 
@@ -162,33 +161,7 @@ public class Main {
 
     private enum FitnessKind{
         ConflictsFitness(Chromosome::conflicts),
-        Conflicts2Fitness(Chromosome::conflicts2),
-        Conflicts3Fitness(Chromosome::conflicts3),
-        Conflicts33Fitness(Chromosome::conflictsCustom33),
-        ConflictsWeirdFitness(new Fitness() {
-            @Override
-            public double calcRaw(Chromosome c, ProblemSet ga) {
-                return c.conflicts3(ga);
-            }
-
-            @Override
-            public Comparator<Chromosome> rank(ProblemSet ps) {
-                return (c1, c2) -> c1.paretoDominates(c2, ps);
-            }
-        }),
-        ConflictsWeirdFitness2(new Fitness() {
-            @Override
-            public double calcRaw(Chromosome c, ProblemSet ga) {
-                return c.conflicts3(ga);
-            }
-
-            @Override
-            public Comparator<Chromosome> rank(ProblemSet ps) {
-                return (c1, c2) -> c1.paretoDominates2(c2, ps);
-            }
-        }),
-        ConflictsBoundedFitness(Chromosome::conflictsBounded),
-        ConflictsCustomFitness(Chromosome::conflictsCustom);
+        Conflicts2Fitness(Chromosome::conflicts2);
         public final Fitness fitness;
         FitnessKind(Fitness fitness) {
             this.fitness = fitness;
