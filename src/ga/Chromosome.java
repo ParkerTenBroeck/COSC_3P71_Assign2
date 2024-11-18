@@ -1,19 +1,23 @@
 package ga;
 
+import data.Course;
 import data.ProblemSet;
 import data.Room;
 import data.Timeslot;
 import util.Util;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.stream.Stream;
 
 public class Chromosome implements Comparable<Chromosome> {
 
     private final Gene[] genes;
     public final double fitness;
     public final double rawFitness;
+    private final static boolean VERIFY_TIMESLOT = false;
 
     private Chromosome(Gene[] genes, GA ga) {
         this.genes = genes;
@@ -32,31 +36,10 @@ public class Chromosome implements Comparable<Chromosome> {
         }
         return new Chromosome(genes, ga);
     }
-    /*
-     * number of conflicts = 0
-     * room usage = dict
-     * professor schedule = dict
-     *
-     * for each (course, room, timeslot) in chromosome:
-     *     if course number of students > room capacity:
-     *         number of conflicts += 2
-     *
-     *     for each possible hour of class: # (0 to course hours -1)
-     *         current slot = timeslot index + hour of class
-     *         if (room index, current slot) not in room usage:
-     *             room usage [(room index, current slot)] = 0
-     *         add 1 to room usage [(room index, current slot)]
-     *         if room usage [(room index, current slot)] list is > 1
-     *             number conflicts += 3
-     *
-     *         if (course professor, current slot) not in professor schedule
-     *             professor schedule [(course professor, current slot)] = 0
-     *         professor schedule [(course professor, current slot)] += 1
-     *         if professor schedule [(course professor, current slot)] > 1
-     *             number of conflicts += 1
-     *
-     * return 1 / (1 + number of conflicts)
-     */
+
+    public Stream<Gene> genes(){
+        return Arrays.stream(this.genes);
+    }
 
     public int conflicts(ProblemSet problemSet){
         int conflicts = 0;
@@ -69,7 +52,7 @@ public class Chromosome implements Comparable<Chromosome> {
             var timeslot = problemSet.timeslots.get(item.timeslotIdx);
             var course = problemSet.courses.get(item.courseIdx);
 
-            if(course.students > room.capacity) conflicts += 2;
+            if(course.students > room.capacity) conflicts += VERIFY_TIMESLOT?3:4;
 
             for(int i = timeslot.hour; i < timeslot.hour + course.duration; i ++){
                 var currTimeslot = new Timeslot(timeslot.day, i);
@@ -77,36 +60,16 @@ public class Chromosome implements Comparable<Chromosome> {
                 if(conflict) conflicts += 1;
 
                 conflict = !roomUsage.add(new Util.Tuple<>(currTimeslot, room));
-                if(conflict) conflicts += 3;
+                if(conflict) conflicts += 2;
+
+                if(VERIFY_TIMESLOT){
+                    conflict = !problemSet.timeslots.contains(currTimeslot);
+                    if(conflict) conflicts += 3;
+                }
             }
         }
 
         return conflicts;
-    }
-
-    public int conflicts2(ProblemSet problemSet){
-
-        HashMap<Util.Tuple<Timeslot, Room>, Integer> roomUsage = new HashMap<>();
-        HashMap<Util.Tuple<Timeslot, String>, Integer> profSched = new HashMap<>();
-        int overbooked = 0;
-
-        for(var item : this.genes){
-            var room = problemSet.rooms.get(item.roomIdx);
-            var timeslot = problemSet.timeslots.get(item.timeslotIdx);
-            var course = problemSet.courses.get(item.courseIdx);
-
-            if(course.students > room.capacity) overbooked += 1;
-
-            for(int i = timeslot.hour; i < timeslot.hour + course.duration; i ++){
-                var currTimeslot = new Timeslot(timeslot.day, i);
-                profSched.compute(new Util.Tuple<>(currTimeslot, course.professor), (k, v) -> v==null?0:v+1);
-                roomUsage.compute(new Util.Tuple<>(currTimeslot, room), (k, v) -> v==null?0:v+1);
-            }
-        }
-
-        return overbooked*3
-                +roomUsage.values().stream().mapToInt(Integer::intValue).sum()*2
-                +profSched.values().stream().mapToInt(Integer::intValue).sum();
     }
 
     public Chromosome singleGeneMutation(GA ga){
@@ -145,126 +108,81 @@ public class Chromosome implements Comparable<Chromosome> {
     }
 
     public Util.Tuple<Chromosome, Chromosome> bestAttemptCrossover(Chromosome other, GA ga){
-        var g1 = this.genes.clone();
-        var g2 = other.genes.clone();
+        var c1 = this.genes.clone();
+        var c2 = other.genes.clone();
 
-        int capacityConflicts1 = 0;
-        HashMap<Util.Tuple<Timeslot, Room>, Integer> roomUsage1 = new HashMap<>();
-        HashMap<Util.Tuple<Timeslot, String>, Integer> profSched1 = new HashMap<>();
-        int capacityConflicts2 = 0;
-        HashMap<Util.Tuple<Timeslot, Room>, Integer> roomUsage2 = new HashMap<>();
-        HashMap<Util.Tuple<Timeslot, String>, Integer> profSched2 = new HashMap<>();
+        HashSet<Util.Tuple<Timeslot, Room>> roomUsage1 = new HashSet<>();
+        HashSet<Util.Tuple<Timeslot, String>> profSched1 = new HashSet<>();
+        HashSet<Util.Tuple<Timeslot, Room>> roomUsage2 = new HashSet<>();
+        HashSet<Util.Tuple<Timeslot, String>> profSched2 = new HashSet<>();
 
+        var g1 = new Util.QuaTuple<Gene, Room, Timeslot, Course>();
+        var g2 = new Util.QuaTuple<Gene, Room, Timeslot, Course>();
+        BiConsumer<Gene, Util.QuaTuple<Gene, Room, Timeslot, Course>> set = (g, r) -> {
+            r.t1 = g;
+            r.t2 = ga.problemSet.rooms.get(g.roomIdx);
+            r.t3 = ga.problemSet.timeslots.get(g.timeslotIdx);
+            r.t4 = ga.problemSet.courses.get(g.courseIdx);
+        };
+        BiFunction< Util.QuaTuple<Gene, Room, Timeslot, Course>,  Util.QuaTuple<Gene, Room, Timeslot, Course>, Integer> costFunc = (G1, G2) -> {
+            var cost = 0;
+            if(G1.t4.students > G1.t2.capacity) {
+                cost += 1;
+            }
+            if(G2.t4.students > G2.t2.capacity) {
+                cost += 1;
+            }
+            for(int j = G1.t3.hour; j < G1.t3.hour + G1.t4.duration; j ++){
+                var currTimeslot = new Timeslot(G1.t3.day, j);
+                cost += profSched1.contains(new Util.Tuple<>(currTimeslot, G1.t4.professor))?1:0;
+                cost += roomUsage1.contains(new Util.Tuple<>(currTimeslot, G1.t2))?1:0;
+                if(VERIFY_TIMESLOT)
+                    cost += ga.problemSet.timeslots.contains(currTimeslot)?0:1;
+            }
+            for(int j = G2.t3.hour; j < G2.t3.hour + G2.t4.duration; j ++){
+                var currTimeslot = new Timeslot(G2.t3.day, j);
+                cost += profSched2.contains(new Util.Tuple<>(currTimeslot, G2.t4.professor))?1:0;
+                cost += roomUsage2.contains(new Util.Tuple<>(currTimeslot, G2.t2))?1:0;
+                if(VERIFY_TIMESLOT)
+                    cost += ga.problemSet.timeslots.contains(currTimeslot)?0:1;
+            }
 
-
-        var length = Math.min(g1.length, g2.length);
+            return cost;
+        };
+        var length = Math.min(c1.length, c2.length);
         for(int i = 0; i != length; i ++){
+            set.accept(c1[i], g1);
+            set.accept(c2[length-1-i], g2);
 
-            var room1 = ga.problemSet.rooms.get(g1[i].roomIdx);
-            var timeslot1 = ga.problemSet.timeslots.get(g1[i].timeslotIdx);
-            var course1 = ga.problemSet.courses.get(g1[i].courseIdx);
+            int nonSwapCost = costFunc.apply(g1, g2);
+            int swapCost = costFunc.apply(g2, g1);
 
-            var room2 = ga.problemSet.rooms.get(g2[length-1-i].roomIdx);
-            var timeslot2 = ga.problemSet.timeslots.get(g2[length-1-i].timeslotIdx);
-            var course2 = ga.problemSet.courses.get(g2[length-1-i].courseIdx);
-
-
-            var g1Cons1 = capacityConflicts1;
-            g1Cons1 += roomUsage1.values().stream().filter(v -> v > 1).mapToInt(Integer::intValue).sum();
-            g1Cons1 += profSched1.values().stream().filter(v -> v > 1).mapToInt(Integer::intValue).sum();
-            var g1Cons2 = g1Cons1;
-
-            var g2Cons1 = capacityConflicts2*3;
-            g2Cons1 += roomUsage2.values().stream().filter(v -> v > 1).mapToInt(Integer::intValue).sum();
-            g2Cons1 += profSched2.values().stream().filter(v -> v > 1).mapToInt(Integer::intValue).sum();
-            var g2Cons2 = g2Cons1;
-
-
-            if(course1.students > room1.capacity) g1Cons2 += 1;
-            for(int j = timeslot1.hour; j < timeslot1.hour + course1.duration; j ++){
-                var currTimeslot = new Timeslot(timeslot1.day, j);
-                g1Cons2 += profSched2.containsKey(new Util.Tuple<>(currTimeslot, course1.professor))?1:0;
-                g1Cons2 += roomUsage2.containsKey(new Util.Tuple<>(currTimeslot, room1))?1:0;
-            }
-            if(course2.students > room2.capacity) g2Cons1 += 1;
-            for(int j = timeslot2.hour; j < timeslot2.hour + course2.duration; j ++){
-                var currTimeslot = new Timeslot(timeslot2.day, j);
-                g2Cons1 += profSched1.containsKey(new Util.Tuple<>(currTimeslot, course2.professor))?1:0;
-                g2Cons1 += roomUsage1.containsKey(new Util.Tuple<>(currTimeslot, room2))?1:0;
-            }
-            if(course1.students > room1.capacity) g1Cons1 += 1;
-            for(int j = timeslot1.hour; j < timeslot1.hour + course1.duration; j ++){
-                var currTimeslot = new Timeslot(timeslot1.day, j);
-                g1Cons1 += profSched1.containsKey(new Util.Tuple<>(currTimeslot, course1.professor))?1:0;
-                g1Cons1 += roomUsage1.containsKey(new Util.Tuple<>(currTimeslot, room1))?1:0;
-            }
-            if(course2.students > room2.capacity) g2Cons2 += 1;
-            for(int j = timeslot2.hour; j < timeslot2.hour + course2.duration; j ++){
-                var currTimeslot = new Timeslot(timeslot2.day, j);
-                g2Cons2 += profSched2.containsKey(new Util.Tuple<>(currTimeslot, course2.professor))?1:0;
-                g2Cons2 += roomUsage2.containsKey(new Util.Tuple<>(currTimeslot, room2))?1:0;
+            if(swapCost < nonSwapCost || (swapCost == nonSwapCost && ga.rng.percent(0.5))) {
+                var tmp = g1;
+                g1 = g2;
+                g2 = tmp;
             }
 
-            boolean swap;
-            if(g2Cons1 + g1Cons2 < g1Cons1 + g2Cons2)
-                swap = true;
-            else if(g2Cons1 + g1Cons2 == g1Cons1 + g2Cons2)
-                swap = ga.rng.percent(0.5);
-            else
-                swap = false;
+            c1[i] = g1.t1;
+            c2[length-1-i] = g2.t1;
 
-            if(swap){
-                var tmp = g1[i];
-                g1[i] = g2[length-1-i];
-                g2[length-1-i] = tmp;
+            for(int j = g1.t3.hour; j < g1.t3.hour + g1.t4.duration; j ++){
+                var currTimeslot = new Timeslot(g1.t3.day, j);
+                profSched1.add(new Util.Tuple<>(currTimeslot, g1.t4.professor));
+                roomUsage1.add(new Util.Tuple<>(currTimeslot, g1.t2));
+            }
 
-                if(course1.students > room1.capacity) capacityConflicts2 += 1;
-                for(int j = timeslot1.hour; j < timeslot1.hour + course1.duration; j ++){
-                    var currTimeslot = new Timeslot(timeslot1.day, j);
-                    profSched2.compute(new Util.Tuple<>(currTimeslot, course1.professor), (k, v) -> v==null?0:v+1);
-                    roomUsage2.compute(new Util.Tuple<>(currTimeslot, room1), (k, v) -> v==null?0:v+1);
-                }
-
-                if(course2.students > room2.capacity) capacityConflicts1 += 1;
-                for(int j = timeslot2.hour; j < timeslot2.hour + course2.duration; j ++){
-                    var currTimeslot = new Timeslot(timeslot2.day, j);
-                    profSched1.compute(new Util.Tuple<>(currTimeslot, course2.professor), (k, v) -> v==null?0:v+1);
-                    roomUsage1.compute(new Util.Tuple<>(currTimeslot, room2), (k, v) -> v==null?0:v+1);
-                }
-            }else{
-                if(course1.students > room1.capacity) capacityConflicts1 += 1;
-                for(int j = timeslot1.hour; j < timeslot1.hour + course1.duration; j ++){
-                    var currTimeslot = new Timeslot(timeslot1.day, j);
-                    profSched1.compute(new Util.Tuple<>(currTimeslot, course1.professor), (k, v) -> v==null?0:v+1);
-                    roomUsage1.compute(new Util.Tuple<>(currTimeslot, room1), (k, v) -> v==null?0:v+1);
-                }
-
-                if(course2.students > room2.capacity) capacityConflicts2 += 1;
-                for(int j = timeslot2.hour; j < timeslot2.hour + course2.duration; j ++){
-                    var currTimeslot = new Timeslot(timeslot2.day, j);
-                    profSched2.compute(new Util.Tuple<>(currTimeslot, course2.professor), (k, v) -> v==null?0:v+1);
-                    roomUsage2.compute(new Util.Tuple<>(currTimeslot, room2), (k, v) -> v==null?0:v+1);
-                }
+            for(int j = g2.t3.hour; j < g2.t3.hour + g2.t4.duration; j ++){
+                var currTimeslot = new Timeslot(g2.t3.day, j);
+                profSched2.add(new Util.Tuple<>(currTimeslot, g2.t4.professor));
+                roomUsage2.add(new Util.Tuple<>(currTimeslot, g2.t2));
             }
         }
-        return new Util.Tuple<>(new Chromosome(g1, ga), new Chromosome(g2, ga));
+        return new Util.Tuple<>(new Chromosome(c1, ga), new Chromosome(c2, ga));
     }
 
     @Override
     public int compareTo(Chromosome o) {
         return Double.compare(this.fitness, o.fitness);
-    }
-
-    public String toString(ProblemSet problemSet) {
-        return Util.lines(
-            "Chromosome{",
-            Util.indent(
-            "fitness: " + fitness,
-                "genes: [",
-                Util.indent(Arrays.stream(genes).map(g -> g.toString(problemSet))),
-                "]"
-            ),
-            "}"
-        );
     }
 }

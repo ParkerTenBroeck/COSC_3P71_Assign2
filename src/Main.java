@@ -1,13 +1,23 @@
+import data.Course;
 import data.ProblemSet;
+import data.Room;
+import data.Timeslot;
 import ga.Chromosome;
 import ga.GA;
+import ga.Gene;
+import ga.GenerationStat;
 import ga.functional.*;
 import util.AveragedQueue;
 import util.GAPopulationGraph;
 import util.Util;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Stream;
 
@@ -16,20 +26,27 @@ public class Main {
         var probSet = new ProblemSet("./data/t1");
         System.out.println(probSet);
 
-        var window = new GAPopulationGraph();
-
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        GAPopulationGraph window;
+        if(!Arrays.asList(args).contains("--gui")) {
+            window = new GAPopulationGraph();
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }else {
+            window = null;
         }
+
+
 
         var seeds = new long[30];
         for(int i = 0; i < seeds.length; i ++){
+//             seeds[i] = (long) (Long.MAX_VALUE*Math.random());
             seeds[i] = i+1;
         }
 
-        var map = Stream.of(new Stuff(
+        var map = Stream.of(new GAParameters(
                 probSet,
                 1,
                 0.9,
@@ -37,7 +54,7 @@ public class Main {
                 500,
                 InitializerKind.RandomInitializer,
                 SelectionKind.TournamentSelection,
-                FitnessKind.Conflicts2Fitness,
+                FitnessKind.ConflictsFitness,
                 MutationKind.SingleGeneMutation,
                 CrossoverKind.UniformCrossover
             ))
@@ -49,41 +66,75 @@ public class Main {
         ;
 
         var forkJoinPool = new ForkJoinPool(seeds.length);
-        map.forEach(meow -> {
-            var params = meow.clone();
-            var graph = window.graph(Arrays.toString(seeds)+"\n"+params);
-            var weird = new AveragedQueue(seeds.length, graph::addDataPoint);
+        var it = map.map(meow -> runner(forkJoinPool, window, meow.clone(), seeds)).iterator();
 
-            var bestResults = forkJoinPool.submit(() -> Arrays.stream(seeds).parallel().mapToObj(seed -> {
-                var consumer = weird.provider();
-                var result = new GA(
-                        seed, params.problemSet,
-                        params.elitismRate, params.crossoverRate, params.mutationRate, params.populationSize,
-                        params.initialize.initializer,
-                        params.select.selector,
-                        params.fitness.fitness,
-                        params.mutate.fitness,
-                        params.crossover.crossover,
-                        consumer
-                ).run(250);
-                consumer.accept(null);
-                graph.addVerticalLabel(result.stats.size()-1, "G:" + (result.stats.size()-1) + " S:" + seed + " F:" + Math.round(result.result.fitness));
-                System.out.println(params + "\n" + result.stats.size());
-                return result;
-            }).toList()).join();
-
-            var average = bestResults.stream().mapToDouble(value -> value.result.fitness).average().orElse(0.0);
-            var completed = bestResults.stream().mapToDouble(value -> value.result.fitness).filter(params.fitness.fitness::complete).count();
-            var averageCompletedGen = bestResults.stream()
-                    .filter(v -> params.fitness.fitness.complete(v.result.fitness))
-                    .mapToDouble(value -> value.stats.size()-1)
-                    .average()
-                    .orElse(0.0);
-            graph.showResults("Average Fitness: " + average + "\nCompleted: " + completed + "\nAverage Completed Generation: " + averageCompletedGen);
-        });
+        try{
+            Arrays.stream(Objects.requireNonNull(new File("runs").listFiles())).forEach(File::delete);
+        }catch (Exception ignore){}
+        Files.deleteIfExists(Paths.get("runs"));
+        Files.createDirectory(Paths.get("runs"));
+        for (int i = 1; it.hasNext(); i++) {
+            var item = it.next();
+            try {
+                Files.write(Paths.get("runs/run"+i+".json"), item.toString().getBytes());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
-    private static class Stuff{
+
+
+    static GARuns runner(ForkJoinPool pool, GAPopulationGraph window, GAParameters params, long[] seeds){
+        var stats = new GARuns(params);
+
+        var graph = window != null?window.graph(Arrays.toString(seeds)+"\n"+params):null;
+        var averager = new AveragedQueue(seeds.length, average -> {
+            if(graph != null) graph.addDataPoint(average);
+            stats.averagedStats.add(average);
+        });
+        var bestResults = pool.submit(() -> Arrays.stream(seeds).parallel().mapToObj(seed -> {
+            var run = stats.run(seed);
+            var consumer = averager.provider();
+            var result = new GA(
+                    seed, params.problemSet,
+                    params.elitismRate, params.crossoverRate, params.mutationRate, params.populationSize,
+                    params.initialize.initializer,
+                    params.select.selector,
+                    params.fitness.fitness,
+                    params.mutate.fitness,
+                    params.crossover.crossover,
+                    consumer
+            ).run(250);
+            run.best = result.result;
+            run.finished = params.fitness.fitness.complete(run.best.fitness);
+            run.generationStats = result.stats;
+
+            consumer.accept(null);
+            if(graph != null)
+                graph.addVerticalLabel(result.stats.size()-1, "G:" + (result.stats.size()-1) + " S:" + seed + " F:" + Math.round(result.result.fitness));
+            return result;
+        }).toList()).join();
+
+        stats.averageBestFitness = bestResults.stream().mapToDouble(value -> value.result.fitness).average().orElse(0.0);
+        stats.completed = (int)bestResults.stream().mapToDouble(value -> value.result.fitness).filter(params.fitness.fitness::complete).count();
+        stats.averageCompletedGen = bestResults.stream()
+                .filter(v -> params.fitness.fitness.complete(v.result.fitness))
+                .mapToDouble(value -> value.stats.size()-1)
+                .average()
+                .orElse(0.0);
+        stats.averageGen = bestResults.stream()
+                .mapToDouble(value -> value.stats.size()-1)
+                .average()
+                .orElse(0.0);
+
+        if(graph != null)
+            graph.showResults("Average Fitness: " + stats.averageBestFitness + "\nCompleted: " + stats.completed + "\nAverage Completed Generation: " + stats.averageCompletedGen);
+
+        return stats;
+    }
+
+    private static class GAParameters {
         public ProblemSet problemSet;
         public int elitismRate;
         public double crossoverRate;
@@ -95,7 +146,7 @@ public class Main {
         public MutationKind mutate;
         public CrossoverKind crossover;
 
-        public Stuff(
+        public GAParameters(
                 ProblemSet problemSet,
                 int elitismRate,
                 double crossoverRate,
@@ -120,8 +171,8 @@ public class Main {
         }
 
         @Override
-        public Stuff clone() {
-            return new Stuff(problemSet,elitismRate,crossoverRate,mutationRate,populationSize,initialize,select,fitness,mutate,crossover);
+        public GAParameters clone() {
+            return new GAParameters(problemSet,elitismRate,crossoverRate,mutationRate,populationSize,initialize,select,fitness,mutate,crossover);
         }
 
         @Override
@@ -131,6 +182,129 @@ public class Main {
                     "  mutationRate: " + mutationRate +
                     "  populationSize: " + populationSize +
                     "\n" + initialize + " " + select + " " + fitness + " " + mutate + " " + crossover;
+        }
+
+        public String json() {
+            return Util.objln(
+                Util.field("elitism_rate", elitismRate),
+                Util.field("crossover_rate", crossoverRate),
+                Util.field("mutation_rate", mutationRate),
+                Util.field("population_size", populationSize),
+                Util.fieldStr("initialize", initialize.toString()),
+                Util.fieldStr("select", select.toString()),
+                Util.fieldStr("fitness", fitness.toString()),
+                Util.fieldStr("mutate", mutate.toString()),
+                Util.fieldStr("crossover", crossover.toString())
+            );
+
+        }
+    }
+
+    private static class GARuns{
+        public GAParameters params;
+        public final ArrayList<GARun> runs = new ArrayList<>();
+        public final ArrayList<GenerationStat> averagedStats = new ArrayList<>();
+
+        public double averageBestFitness;
+        public int completed;
+        public double averageCompletedGen;
+        public double averageGen;
+
+        public GARuns(GAParameters params) {
+            this.params = params;
+        }
+
+        public GARun run(long seed){
+            var run = new GARun(seed);
+            this.runs.add(run);
+            return run;
+        }
+
+
+        private class GARun{
+            public long seed;
+            public ArrayList<GenerationStat> generationStats;
+            public Chromosome best;
+            public boolean finished;
+
+            public GARun(long seed) {
+                this.seed = seed;
+            }
+
+            public String json() {
+                return Util.objln(
+                    Util.field("seed", seed),
+                    Util.field("finished", finished),
+                    Util.field("gen_stats", Util.arrln(generationStats.stream().map(GARuns::json))),
+                    Util.field("best", Util.objln(
+                            Util.field("normalized", best.fitness),
+                            Util.field("raw", best.rawFitness),
+                            Util.field("chromosome", Util.arrln(best.genes().map(GARuns.this::json)))
+                    ))
+                );
+            }
+        }
+
+        private String json(Gene stat){
+            return Util.obj(
+              Util.field("room", json(params.problemSet.rooms.get(stat.roomIdx))),
+                Util.field("course", json(params.problemSet.courses.get(stat.roomIdx))),
+                Util.field("timeslot", json(params.problemSet.timeslots.get(stat.roomIdx)))
+            );
+        }
+
+        private static String json(GenerationStat stat){
+            return Util.obj(
+                Util.field("normalized", Util.obj(
+                    Util.field("max", stat.maxFit),
+                    Util.field("min", stat.minFit),
+                    Util.field("average", stat.averageFit)
+                )),
+                Util.field("raw", Util.obj(
+                    Util.field("max", stat.maxRawFit),
+                    Util.field("min", stat.minRawFit),
+                    Util.field("average", stat.averageRawFit)
+                ))
+            );
+        }
+
+        private static String json(Room room){
+            return Util.obj(
+                    Util.fieldStr("name", room.name),
+                    Util.field("capacity", room.capacity)
+            );
+        }
+        private static String json(Timeslot timeslot){
+            return Util.obj(
+                    Util.fieldStr("day", timeslot.day.toString()),
+                    Util.field("hour", timeslot.hour)
+            );
+        }
+        private static String json(Course course){
+            return Util.obj(
+              Util.fieldStr("name", course.name),
+                Util.field("students", course.students),
+                Util.fieldStr("professor", course.professor),
+                Util.field("duration", course.duration)
+            );
+        }
+
+        @Override
+        public String toString(){
+            return Util.objln(
+            Util.field("average_best_fitness", averageBestFitness),
+                Util.field("completed", completed),
+                Util.field("average_completed_gen", averageCompletedGen),
+                Util.field("average_gen", averageGen),
+                Util.field("params: ", params.json()),
+                Util.field("averaged_gen_stats", Util.arrln(averagedStats.stream().map(GARuns::json))),
+                Util.field("runs", Util.arrln(runs.stream().map(GARun::json))),
+                Util.field("problem_set", Util.objln(
+                    Util.field("courses", Util.arrln(params.problemSet.courses.stream().map(GARuns::json))),
+                    Util.field("rooms", Util.arrln(params.problemSet.rooms.stream().map(GARuns::json))),
+                    Util.field("timeslots", Util.arrln(params.problemSet.timeslots.stream().map(GARuns::json)))
+                ))
+            );
         }
     }
 
@@ -160,8 +334,7 @@ public class Main {
     }
 
     private enum FitnessKind{
-        ConflictsFitness(Chromosome::conflicts),
-        Conflicts2Fitness(Chromosome::conflicts2);
+        ConflictsFitness(Chromosome::conflicts);
         public final Fitness fitness;
         FitnessKind(Fitness fitness) {
             this.fitness = fitness;

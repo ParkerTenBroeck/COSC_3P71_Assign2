@@ -1,21 +1,21 @@
 package util;
 
-import ga.GA;
+import ga.GenerationStat;
 
 import java.util.function.Consumer;
 
 public class AveragedQueue {
         private final ValueProvider[] meows;
-        private final Consumer<GA.GenerationStat> consumer;
+        private final Consumer<GenerationStat> consumer;
         private int ready = 0;
         private int done = 0;
 
-        public AveragedQueue(int expected, Consumer<GA.GenerationStat> consumer){
+        public AveragedQueue(int expected, Consumer<GenerationStat> consumer){
             this.consumer = consumer;
             meows = new ValueProvider[expected];
         }
 
-        public synchronized Consumer<GA.GenerationStat> provider(){
+        public synchronized Consumer<GenerationStat> provider(){
             var meow = new ValueProvider();
             for(int i = 0; i < meows.length; i ++){
                 if(meows[i] == null){
@@ -50,18 +50,18 @@ public class AveragedQueue {
                     count += 1;
                 }
                 if(count != 0){
-                    consumer.accept(new GA.GenerationStat(norMin/count,norMax/count,norAvg/count,rawMin/count,rawMax/count,rawAvg/count));
+                    consumer.accept(new GenerationStat(norMin/count,norMax/count,norAvg/count,rawMin/count,rawMax/count,rawAvg/count));
                 }
 
             }
         }
 
         private class ValueProvider {
-            private GA.GenerationStat meow;
-            private GA.GenerationStat last;
+            private GenerationStat meow;
+            private GenerationStat last;
             private boolean done = false;
 
-            private void push(GA.GenerationStat stat){
+            private void push(GenerationStat stat){
                 if(stat == null){
                     synchronized (this){
                         while(meow != null) {
@@ -88,7 +88,7 @@ public class AveragedQueue {
 
             }
 
-            private synchronized GA.GenerationStat pop(){
+            private synchronized GenerationStat pop(){
                 if(!done()){
                     last = meow;
                     meow = null;

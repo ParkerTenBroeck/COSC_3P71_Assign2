@@ -2,9 +2,7 @@ package ga;
 
 import data.ProblemSet;
 import ga.functional.*;
-import util.Util;
 
-import java.text.NumberFormat;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -17,7 +15,6 @@ public class GA {
 
     private Chromosome[] prevPopulation;
     private Chromosome[] population;
-
 
     public final ProblemSet problemSet;
     public final GaRNG rng;
@@ -83,13 +80,16 @@ public class GA {
 
     private void elitism(){
         population[0] = prevPopulation[0];
-        for(int i = 1; i < populationSize; i ++){
-            for(int k = 0; k < elitismRate; k ++){
-                if(fitness.rank(problemSet).compare(prevPopulation[i], population[k])>0){
-                    for(int j = elitismRate-1; j > k+1; j --){
-                        population[j] = population[j-1];
+        for(int i = 1; i < elitismRate; i ++) population[i] = null;
+        outer:
+        for(int popIdx = 1; popIdx < populationSize; popIdx ++){
+            for(int elitIdx = 0; elitIdx < elitismRate; elitIdx ++){
+                if(population[elitIdx]==null||fitness.rank(problemSet).compare(prevPopulation[popIdx], population[elitIdx])>0){
+                    for(int insertIdx = elitismRate-1; insertIdx > elitIdx+1; insertIdx --){
+                        population[insertIdx] = population[insertIdx-1];
                     }
-                    population[k] = prevPopulation[i];
+                    population[elitIdx] = prevPopulation[popIdx];
+                    continue outer;
                 }
             }
         }
@@ -103,19 +103,20 @@ public class GA {
     }
 
     private void crossover(){
-        for(int i = 0; i < populationSize; i ++){
+        var idxFrom = Math.min(elitismRate, populationSize);
+        for(int i = idxFrom; i < populationSize; i ++){
             if(rng.percent(crossoverRate)){
-                var i1 = rng.randomInt(populationSize);
-                var i2 = rng.randomInt(populationSize);
-                var result = crossover.crossover(population[i1], population[i2], this);
-                population[i1] = result.t1;
+                var i2 = rng.randomInt(populationSize-idxFrom)+idxFrom;
+                var result = crossover.crossover(population[i], population[i2], this);
+                population[i] = result.t1;
                 population[i2] = result.t2;
             }
         }
     }
 
     private void mutation(){
-        for(int i = 0; i < populationSize; i ++){
+        var idxFrom = Math.min(elitismRate, populationSize);
+        for(int i = idxFrom; i < populationSize; i ++){
             if(rng.percent(mutationRate))
                 population[i] = mutate.mutate(population[i], this);
         }
@@ -132,6 +133,7 @@ public class GA {
         return Arrays.stream(prevPopulation).max(fitness.rank(problemSet)).orElse(null);
     }
 
+
     public static final class GaRNG{
         Random rand;
         public GaRNG(long seed){
@@ -144,72 +146,6 @@ public class GA {
 
         public boolean percent(double percent){
             return rand.nextDouble() < percent;
-        }
-    }
-
-    public static final class GenerationStat{
-        public final double minFit;
-        public final double maxFit;
-        public final double averageFit;
-
-        public final double minRawFit;
-        public final double maxRawFit;
-        public final double averageRawFit;
-
-        public GenerationStat(double minFit, double maxFit, double averageFit, double minRawFit, double maxRawFit, double averageRawFit) {
-            this.minFit = minFit;
-            this.maxFit = maxFit;
-            this.averageFit = averageFit;
-            this.minRawFit = minRawFit;
-            this.maxRawFit = maxRawFit;
-            this.averageRawFit = averageRawFit;
-        }
-
-        private GenerationStat(Chromosome[] population) {
-            this.maxFit = Arrays.stream(population).mapToDouble(c -> c.fitness).max().orElse(0.0);
-            this.minFit = Arrays.stream(population).mapToDouble(c -> c.fitness).min().orElse(0.0);
-            this.averageFit = Arrays.stream(population).mapToDouble(c -> c.fitness).average().orElse(0.0);
-
-
-            this.maxRawFit = Arrays.stream(population).mapToDouble(c -> c.rawFitness).max().orElse(0.0);
-            this.minRawFit = Arrays.stream(population).mapToDouble(c -> c.rawFitness).min().orElse(0.0);
-            this.averageRawFit = Arrays.stream(population).mapToDouble(c -> c.rawFitness).average().orElse(0.0);
-        }
-
-        private static String percent(double value){
-            NumberFormat defaultFormat = NumberFormat.getPercentInstance();
-            defaultFormat.setMaximumFractionDigits(2);
-            defaultFormat.setMinimumFractionDigits(2);
-            return defaultFormat.format(value);
-        }
-
-        @Override
-        public String toString() {
-            return "(max: " + percent(maxFit) + ", min: " + percent(minFit) + ", average: " + percent(averageFit) + ')' + "(max: " + maxRawFit + ", min: " + minRawFit + ", average: " + averageRawFit + ')';
-        }
-    }
-
-    public final class GAResult{
-        public final ArrayList<GenerationStat> stats;
-        public final Chromosome result;
-
-        public GAResult(ArrayList<GenerationStat> stats, Chromosome result) {
-            this.stats = stats;
-            this.result = result;
-        }
-
-        @Override
-        public String toString() {
-            return Util.lines(
-                "GAResult{",
-                Util.indent(
-                    "stats: [",
-                    Util.indent(stats.stream().map(Objects::toString)),
-                    "]",
-                    "result: " + result.toString(problemSet)
-                ),
-                "}"
-            );
         }
     }
 }

@@ -1,6 +1,6 @@
 package util;
 
-import ga.GA;
+import ga.GenerationStat;
 
 import javax.swing.*;
 import java.awt.*;
@@ -44,7 +44,7 @@ public class GAPopulationGraph extends JFrame {
             this.title = title;
         }
 
-        public void addDataPoint(GA.GenerationStat result) {
+        public void addDataPoint(GenerationStat result) {
             lhs.add(result.minRawFit, result.maxRawFit, result.averageRawFit);
             rhs.add(result.minFit, result.maxFit, result.averageFit);
             SwingUtilities.invokeLater(this::repaint);

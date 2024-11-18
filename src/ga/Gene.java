@@ -12,11 +12,4 @@ public class Gene {
         this.courseIdx = courseIdx;
         this.timeslotIdx = timeslotIdx;
     }
-
-    public String toString(ProblemSet problemSet) {
-        return "Gene(" +
-                problemSet.timeslots.get(timeslotIdx) + ", " +
-                problemSet.rooms.get(roomIdx) + ", " +
-                problemSet.courses.get(courseIdx) + ")";
-    }
 }
