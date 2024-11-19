@@ -23,6 +23,7 @@ public class GA {
     public final Fitness fitness;
     private final Mutator mutate;
     private final Crossover crossover;
+    public final Comparator<Chromosome> cmp;
 
     private final Consumer<GenerationStat> statConsumer;
 
@@ -53,6 +54,7 @@ public class GA {
         this.initialize = initialize;
         this.select = select;
         this.fitness = fitness;
+        this.cmp = fitness.rank(problemSet);
         this.mutate = mutate;
         this.crossover = crossover;
         this.statConsumer = statConsumer;
@@ -79,12 +81,17 @@ public class GA {
     }
 
     private void elitism(){
-        population[0] = prevPopulation[0];
-        for(int i = 1; i < elitismRate; i ++) population[i] = null;
+        for(int i = 0; i < elitismRate; i ++) population[i] = null;
         outer:
-        for(int popIdx = 1; popIdx < populationSize; popIdx ++){
+        for(int popIdx = 0; popIdx < populationSize; popIdx ++){
             for(int elitIdx = 0; elitIdx < elitismRate; elitIdx ++){
-                if(population[elitIdx]==null||fitness.rank(problemSet).compare(prevPopulation[popIdx], population[elitIdx])>0){
+                // if empty insert there
+                if(population[elitIdx]==null){
+                    population[elitIdx] = prevPopulation[popIdx];
+                    continue outer;
+                }
+                // if the new value is larger than the current elite value insert it moving everything else down
+                if(cmp.compare(prevPopulation[popIdx], population[elitIdx])>0){
                     for(int insertIdx = elitismRate-1; insertIdx > elitIdx+1; insertIdx --){
                         population[insertIdx] = population[insertIdx-1];
                     }
@@ -130,7 +137,7 @@ public class GA {
         var tmp = prevPopulation;
         prevPopulation = population;
         population = tmp;
-        return Arrays.stream(prevPopulation).max(fitness.rank(problemSet)).orElse(null);
+        return Arrays.stream(prevPopulation).max(cmp).orElse(null);
     }
 
 

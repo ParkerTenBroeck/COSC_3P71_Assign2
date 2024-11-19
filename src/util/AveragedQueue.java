@@ -66,7 +66,7 @@ public class AveragedQueue {
                     synchronized (this){
                         while(meow != null) {
                             try {
-                                this.wait();
+                                this.wait(10);
                             } catch (InterruptedException ignore) {
                             }
                         }
@@ -77,7 +77,7 @@ public class AveragedQueue {
                     synchronized (this){
                         while(meow != null) {
                             try {
-                                this.wait();
+                                this.wait(10);
                             } catch (InterruptedException ignore) {
                             }
                         }

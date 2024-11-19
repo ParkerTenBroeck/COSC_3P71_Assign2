@@ -26,6 +26,7 @@ public class Course {
     }
 
     @Override
+    @SuppressWarnings("MethodDoesntCallSuperMethod")
     public Course clone() {
         return new Course(this.name, this.professor, this.students, this.duration);
     }

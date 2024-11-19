@@ -1,7 +1,5 @@
 package ga;
 
-import data.ProblemSet;
-
 public class Gene {
     public final int roomIdx;
     public final int courseIdx;

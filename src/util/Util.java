@@ -140,8 +140,6 @@ public class Util {
     }
 
     public static String obj(String... fields){
-        return  "{"+
-                String.join(", ", fields)+
-                "}";
+        return  "{"+fields(fields)+"}";
     }
 }

@@ -20,6 +20,7 @@ public class Timeslot {
     }
 
     @Override
+    @SuppressWarnings("MethodDoesntCallSuperMethod")
     public Timeslot clone(){
         return new Timeslot(this.day, this.hour);
     }
@@ -37,6 +38,8 @@ public class Timeslot {
         return Objects.hash(day, hour);
     }
 
+
+    @SuppressWarnings("unused")
     public enum Day{
         Monday,
         Tuesday,

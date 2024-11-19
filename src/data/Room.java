@@ -12,6 +12,7 @@ public class Room {
     }
 
     @Override
+    @SuppressWarnings("MethodDoesntCallSuperMethod")
     public Room clone(){
         return new Room(this.name, this.capacity);
     }
