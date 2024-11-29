@@ -1,0 +1,1 @@
+java -jar assign2.jar --generations 250 --seeds-linear 50 --elitism-rates 1 --crossover-rates 0.9,1.0 --mutation-rates 0.00,0.01,0.1 --population-sizes 500 --initializer-kinds Random --selection-kinds Tournament --fitness-kinds WeightedConflicts --mutation-kinds SingleGene --crossover-kinds OnePoint,Uniform,BestAttempt --problem-set $@

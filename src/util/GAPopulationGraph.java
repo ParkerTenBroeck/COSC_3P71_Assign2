@@ -57,13 +57,17 @@ public class GAPopulationGraph extends JFrame {
             }
         }
 
-        @Override
-        protected void paintComponent(Graphics g) {
-            super.paintComponent(g);
-            Graphics2D g2 = (Graphics2D) g;
 
-            int width = getWidth();
-            int height = getHeight();
+        public void paintComponent(Graphics g, boolean title) {
+            Graphics2D g2 = (Graphics2D) g;
+            if(!title){
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            }
+            super.paintComponent(g);
+
+
+            int width = (int) g2.getClip().getBounds().getWidth();
+            int height = (int) g2.getClip().getBounds().getHeight();
             int margin = 40;
 
             g.setColor(new Color(0xa9a9a9));
@@ -71,17 +75,22 @@ public class GAPopulationGraph extends JFrame {
             g.fillRect(0, 0, width, height);
 
             g2.setStroke(new BasicStroke(2.5f));
-            drawVerticalAxis(g2, margin, margin*3, width-margin, height-margin);
-            drawHorizontalAxis(g2, margin, margin*3, width-margin, height-margin);
+            drawVerticalAxis(g2, margin, margin*(title?3:2), width-margin, height-margin, title);
+            drawHorizontalAxis(g2, margin, margin*(title?3:2), width-margin, height-margin);
 
             g2.setStroke(new BasicStroke(2.5f));
 
-            drawBoundingBox(g2,  margin, margin*3, width-margin, height-margin);
+            drawBoundingBox(g2,  margin, margin*(title?3:2), width-margin, height-margin);
 
-            g2.setClip(margin, margin*3, width-margin*2, height-margin*4);
-            lhs.draw(g2, margin, margin*3, width-margin, height-margin);
-            rhs.draw(g2, margin, margin*3, width-margin, height-margin);
-            drawLabels(g2, margin, margin*3, width-margin, height-margin);
+            g2.setClip(margin, margin*(title?3:2), width-margin*2, height-margin*(title?4:3));
+            lhs.draw(g2, margin, margin*(title?3:2), width-margin, height-margin);
+            rhs.draw(g2, margin, margin*(title?3:2), width-margin, height-margin);
+            drawLabels(g2, margin, margin*(title?3:2), width-margin, height-margin);
+        }
+
+        @Override
+        public void paintComponent(Graphics g) {
+            paintComponent(g, true);
         }
 
         private void drawBoundingBox(Graphics2D g2, int x1, int y1, int x2, int y2){
@@ -116,7 +125,7 @@ public class GAPopulationGraph extends JFrame {
             g2.drawString(s, x, y);
         }
 
-        private void drawVerticalAxis(Graphics2D g2, int x1, int y1, int x2, int y2){
+        private void drawVerticalAxis(Graphics2D g2, int x1, int y1, int x2, int y2, boolean title){
             var divisions = 11;
             double lhsMin = lhs.lower();
             double lhsMax = lhs.upper();
@@ -145,17 +154,20 @@ public class GAPopulationGraph extends JFrame {
 
 
             g2.setColor(Color.BLACK);
-            int lineN = 3;
-            for(var line : title.lines().toArray()){
-                centerAlignedStr(g2, line.toString(), (x2-x1)/2+x1, y1-20-g2.getFontMetrics().getHeight()*lineN);
-                lineN += 1;
+            if(title){
+                int lineN = 3;
+                for(var line : this.title.lines().toArray()){
+                    centerAlignedStr(g2, line.toString(), (x2-x1)/2+x1, y1-20-g2.getFontMetrics().getHeight()*lineN);
+                    lineN += 1;
+                }
+
+                lineN = 0;
+                for(var line : results.lines().toArray()){
+                    leftAlignedStr(g2, line.toString(), (x2-x1)/5+x1, y1-10-g2.getFontMetrics().getHeight()*lineN);
+                    lineN += 1;
+                }
             }
 
-            lineN = 0;
-            for(var line : results.lines().toArray()){
-                leftAlignedStr(g2, line.toString(), (x2-x1)/5+x1, y1-10-g2.getFontMetrics().getHeight()*lineN);
-                lineN += 1;
-            }
             g2.setColor(Color.RED);
             centerAlignedStr(g2, "Max", (x2-x1)/2+x1, y1-10-g2.getFontMetrics().getHeight()*2);
             g2.setColor(Color.BLUE);

@@ -62,7 +62,7 @@ public class GAParameters {
 
 
     public enum InitializerKind {
-        RandomInitializer(Chromosome::random);
+        Random(Chromosome::random);
         public final Initializer initializer;
         InitializerKind(Initializer initializer) {
             this.initializer = initializer;
@@ -70,7 +70,7 @@ public class GAParameters {
     }
 
     public enum SelectionKind {
-        TournamentSelection((chromosomes, ga) -> {
+        Tournament((chromosomes, ga) -> {
             var max = ga.rng.randomInt(chromosomes.length);
             for(int i = 1; i < 4; i++){
                 var inx = ga.rng.randomInt(chromosomes.length);
@@ -79,7 +79,7 @@ public class GAParameters {
             }
             return chromosomes[max];
         }),
-        RandomSelection((chromosomes, ga) -> chromosomes[ga.rng.randomInt(chromosomes.length)]);
+        Random((chromosomes, ga) -> chromosomes[ga.rng.randomInt(chromosomes.length)]);
         public final Selector selector;
         SelectionKind(Selector selector) {
             this.selector = selector;
@@ -87,7 +87,7 @@ public class GAParameters {
     }
 
     public enum FitnessKind{
-        ConflictsFitness(Chromosome::conflicts);
+        WeightedConflicts(Chromosome::conflicts);
         public final Fitness fitness;
         FitnessKind(Fitness fitness) {
             this.fitness = fitness;
@@ -95,7 +95,7 @@ public class GAParameters {
     }
 
     public enum MutationKind{
-        SingleGeneMutation(Chromosome::singleGeneMutation);
+        SingleGene(Chromosome::singleGeneMutation);
         public final Mutator fitness;
         MutationKind(Mutator fitness) {
             this.fitness = fitness;
@@ -103,10 +103,10 @@ public class GAParameters {
     }
 
     public enum CrossoverKind{
-        NoCrossover((c1, c2, ga) -> new Util.Tuple<>(c1,c2)),
-        OnePointCrossover(Chromosome::onePointCrossover),
-        UniformCrossover(Chromosome::uniformCrossover),
-        BestAttemptCrossover(Chromosome::bestAttemptCrossover);
+        None((c1, c2, ga) -> new Util.Tuple<>(c1,c2)),
+        OnePoint(Chromosome::onePointCrossover),
+        Uniform(Chromosome::uniformCrossover),
+        BestAttempt(Chromosome::bestAttemptCrossover);
         public final Crossover crossover;
         CrossoverKind(Crossover crossover) {
             this.crossover = crossover;

@@ -1,33 +1,109 @@
 import data.Course;
 import data.Room;
 import data.Timeslot;
-import ga.Chromosome;
-import ga.GAParameters;
-import ga.Gene;
-import ga.GenerationStat;
+import ga.*;
 import util.Util;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.stream.DoubleStream;
 
 class GARuns {
     public GAParameters params;
     public final ArrayList<GARun> runs = new ArrayList<>();
     public final ArrayList<GenerationStat> averagedStats = new ArrayList<>();
 
-    public double averageBestFitness;
     public int completed;
-    public double averageCompletedGen;
-    public double averageGen;
+    public Statistics normalized;
+    public Statistics raw;
+    public Statistics completedGen;
+    public Statistics gen;
     public int run;
+
+    public static class Statistics{
+        public double mean;
+        public double median;
+        public double std;
+        public double[] values;
+        public double max;
+        public double min;
+
+        public Statistics(DoubleStream stream){
+            this.values = stream.sorted().toArray();
+            this.mean = Arrays.stream(this.values).average().orElse(0.0);
+
+            this.max = Arrays.stream(this.values).max().orElse(0.0);
+            this.min = Arrays.stream(this.values).min().orElse(0.0);
+
+            if (this.values.length == 0){
+                median = 0;
+            }else if ((this.values.length&1) == 1){
+                median = this.values[this.values.length/2];
+            }else{
+                median = (this.values[this.values.length/2]+this.values[this.values.length/2+1])/2;
+            }
+
+            if(this.values.length != 0){
+                for(double num:this.values){
+                    var diff = num-mean;
+                    std += diff*diff;
+                }
+                std = Math.sqrt(std/this.values.length);
+            }
+        }
+    }
+
+    public static class Meow{
+        public final double p;
+        public final double z;
+        public final boolean significant;
+
+        public Meow(Statistics s1, Statistics s2){
+            this.z = (s1.mean-s2.mean)/Math.sqrt(s1.std*s1.std/s1.values.length+s2.std*s2.std/s2.values.length);
+
+            this.p = pValueFromZ(this.z);
+            this.significant = this.p < 0.05;
+        }
+
+        /* Source: http://introcs.cs.princeton.edu/java/21function/ErrorFunction.java.html */
+        public static double erf(double z) {
+            double t = 1.0 / (1.0 + 0.47047 * Math.abs(z));
+            double poly = t * (0.3480242 + t * (-0.0958798 + t * (0.7478556)));
+            double ans = 1.0 - poly * Math.exp(-z*z);
+            if (z >= 0) return  ans;
+            else        return -ans;
+        }
+
+        public static double pValueFromZ(double x) {
+            return 1-erf(Math.abs(x)/Math.sqrt(2));
+        }
+    }
+
 
     public GARuns(GAParameters params) {
         this.params = params;
     }
 
-    public GARun run(long seed) {
+    public synchronized GARun run(long seed) {
         var run = new GARun(seed);
         this.runs.add(run);
         return run;
+    }
+
+    public void calculateFinalResults() {
+        runs.sort((c1, c2) -> params.fitness.fitness.rank(params.problemSet).compare(c1.best, c2.best));
+
+        normalized = new Statistics(runs.stream().mapToDouble(v -> v.best.fitness));
+        raw = new Statistics(runs.stream().mapToDouble(v -> v.best.rawFitness));
+
+        completedGen = new Statistics(runs.stream()
+                .filter(v -> params.fitness.fitness.complete(v.best.fitness))
+                .mapToDouble(v -> v.generationStats.size()-1)
+        );
+        gen = new Statistics(runs.stream()
+                .mapToDouble(v -> v.generationStats.size()-1)
+        );
+        completed = (int)runs.stream().filter(v -> params.fitness.fitness.complete(v.best.fitness)).count();
     }
 
 
@@ -40,6 +116,16 @@ class GARuns {
         public GARun(long seed) {
             this.seed = seed;
         }
+    }
+
+    public String json(Statistics stat){
+        return Util.objln(
+                Util.field("min", stat.min),
+                Util.field("max", stat.max),
+                Util.field("average", stat.mean),
+                Util.field("median", stat.median),
+                Util.field("std", stat.std)
+        );
     }
 
     public String json(GARun run) {
@@ -117,10 +203,11 @@ class GARuns {
 
     public String json(){
         return Util.objln(
-                Util.field("average_best_fitness", averageBestFitness),
                 Util.field("completed", completed),
-                Util.field("average_completed_gen", averageCompletedGen),
-                Util.field("average_gen", averageGen),
+                Util.field("normalized", json(normalized)),
+                Util.field("raw", json(raw)),
+                Util.field("completedGen", json(completedGen)),
+                Util.field("gen", json(gen)),
                 Util.field("params: ", json(params)),
                 Util.field("averaged_gen_stats", Util.arrln(averagedStats.stream().map(GARuns::json))),
                 Util.field("runs", Util.arrln(runs.stream().map(this::json))),
