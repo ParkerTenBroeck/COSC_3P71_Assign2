@@ -1,9 +1,6 @@
 import ga.*;
-import util.AveragedQueue;
-import util.GAPopulationGraph;
+import util.*;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -27,12 +24,16 @@ class Main {
         var runs = runs(cli).peek(item -> {
             try {
                 Files.write(Paths.get("runs/run"+item.run+".json"), item.toString().getBytes());
+                Files.write(Paths.get("runs/run"+item.run+".tex"), LatexGraph.graph(item).getBytes());
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }).toList();
 
+        outputLatexStats(runs);
+    }
 
+    private static void outputLatexStats(List<GARuns> runs) throws IOException {
         var runGens = new LatexTable(6);
         var runFitness = new LatexTable(6);
         var runParameters = new LatexTable(6);
@@ -91,17 +92,17 @@ class Main {
         zvalue.entry("");
         pvalue.entry("");
         for(int i = 0; i < runs.size(); i++){
-            sig.entry("run" + (i+1));
-            zvalue.entry("run" + (i+1));
-            pvalue.entry("run" + (i+1));
+            sig.entry("config" + (i+1));
+            zvalue.entry("config" + (i+1));
+            pvalue.entry("config" + (i+1));
         }
         sig.nextRow();
         zvalue.nextRow();
         pvalue.nextRow();
         for(var run1:runs){
-            sig.entry("run"+run1.run);
-            zvalue.entry("run"+run1.run);
-            pvalue.entry("run"+run1.run);
+            sig.entry("config"+run1.run);
+            zvalue.entry("config"+run1.run);
+            pvalue.entry("config"+run1.run);
             for(var run2:runs){
                 var meow = new GARuns.Meow(run1.gen, run2.gen);
                 var color = meow.significant?
@@ -126,40 +127,6 @@ class Main {
         Files.write(Path.of("runs/compare.tex"), sig.toString().getBytes());
         Files.write(Path.of("runs/zvalues.tex"), zvalue.toString().getBytes());
         Files.write(Path.of("runs/pvalues.tex"), pvalue.toString().getBytes());
-    }
-
-    private static class LatexTable{
-        StringBuilder table;
-        boolean first;
-
-        public LatexTable(int len){
-            this.table = new StringBuilder();
-            this.table.append("\\begin{tabular}{|");
-            this.table.append("c|".repeat(Math.max(0, len)));
-            this.table.append("}\n\\hline\n");
-            this.first = true;
-        }
-
-        public void entry(String value){
-            if(!first)this.table.append("&");
-            this.table.append(value);
-            this.first = false;
-        }
-
-        public void nextRow(){
-            this.first = true;
-            this.table.append("\\\\\n\\hline\n");
-        }
-
-
-        public void end(){
-            this.table.append("\\end{tabular}");
-        }
-
-        @Override
-        public String toString(){
-            return table.toString();
-        }
     }
 
     @SuppressWarnings("all")
@@ -194,7 +161,7 @@ class Main {
 
         var forkJoinPool = new ForkJoinPool(cli.seeds.length);
         var runNum = new AtomicInteger(1);
-        return paramGen.map(params -> runner(forkJoinPool, window, params.clone(), runNum.getAndIncrement(), cli.generations, cli.seeds));
+        return paramGen.filter(v -> v.mutationRate != 0.01 || v.crossover == GAParameters.CrossoverKind.BestAttempt).map(params -> runner(forkJoinPool, window, params.clone(), runNum.getAndIncrement(), cli.generations, cli.seeds));
     }
 
     static <T, V> Function<T, Stream<T>> flat(Supplier<Stream<V>> in, BiConsumer<T, V> setter){
@@ -246,14 +213,14 @@ class Main {
         stats.calculateFinalResults();
 
         if(graph != null) {
-            var image = new BufferedImage(1920, 1080, BufferedImage.TYPE_INT_RGB);
-            var g = image.getGraphics();
-            g.setClip(0, 0, image.getWidth(), image.getHeight());
-            graph.paintComponent(g, false);
-            try {
-                var file = new File("runs/run" + runNum + ".png");
-                ImageIO.write(image, "png", file);
-            } catch (Exception ignore) {}
+//            var image = new BufferedImage(1920, 1080, BufferedImage.TYPE_INT_RGB);
+//            var g = image.getGraphics();
+//            g.setClip(0, 0, image.getWidth(), image.getHeight());
+//            graph.paintComponent(g, false);
+//            try {
+//                var file = new File("runs/run" + runNum + ".png");
+//                ImageIO.write(image, "png", file);
+//            } catch (Exception ignore) {}
 
             graph.showResults(
                     "Average Fitness: " + stats.normalized.mean +

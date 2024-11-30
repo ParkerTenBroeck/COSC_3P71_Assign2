@@ -1,0 +1,32 @@
+    \begin{tikzpicture}[
+node distance = 4mm,
+  MTRX/.style = {matrix of nodes,
+                 nodes={draw, minimum size=5.6mm, anchor=center,
+                        inner sep=0pt, outer sep=0pt},
+                 column sep=-\pgflinewidth,
+                 row sep=2mm},
+    CR/.style = {fill=red},  %fill  Color Red
+    CY/.style = {fill=yellow}%fill  Color Yellow
+                        ] 
+% left table
+\matrix  (m1) [MTRX,
+               row 1/.append style = {nodes={CR}},
+               row 2/.append style = {nodes={CY}},
+               label=above: parents
+               ] 
+{
+$x_0$ & $x_1$ & $x_2$ & $x_3$ & $x_4$ & $x_5$ & $x_6$ & $x_7$ & $x_8$ & $x_9$\\
+$y_0$ & $y_1$ & $y_2$ & $y_3$ & $y_4$ & $y_5$ & $y_6$ & $y_7$ & $y_8$ & $y_9$\\
+};
+% right table
+\matrix  (m2) [MTRX, below=of m1,
+               label=below:children
+               ]
+{
+  |[CR]| $x_0$ & |[CY]| $y_1$ & |[CR]| $x_2$ & |[CR]| $x_3$ & |[CY]| $y_4$
+& |[CY]| $y_5$ & |[CR]| $x_6$ & |[CR]| $x_7$ & |[CR]| $x_8$ & |[CY]| $y_9$   \\
+  |[CY]| $y_0$ & |[CR]| $x_1$ & |[CY]| $y_2$ & |[CY]| $y_3$ & |[CR]| $x_4$
+& |[CR]| $x_5$ & |[CY]| $y_6$ & |[CY]| $y_7$ & |[CY]| $y_8$ & |[CR]| $x_9$   \\
+};
+\draw[double, -{Implies[]}, semithick] (m1.south) -- (m2.north);
+\end{tikzpicture}
