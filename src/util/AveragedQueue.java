@@ -4,6 +4,9 @@ import ga.GenerationStat;
 
 import java.util.function.Consumer;
 
+/**
+ * A way of streaming many (n) inputs into a single output.
+ */
 public class AveragedQueue {
         private final ValueProvider[] meows;
         private final Consumer<GenerationStat> consumer;

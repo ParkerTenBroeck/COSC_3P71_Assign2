@@ -60,6 +60,10 @@ public class GA {
         this.statConsumer = statConsumer;
     }
 
+    /**
+     * Actually runs the GA
+     * @return the calculated statistics as well as the best solution found
+     */
     public GAResult run(int maxGens){
         initialize();
         var popBest = evaluate();
@@ -75,11 +79,17 @@ public class GA {
         return new GAResult(stats, popBest);
     }
 
+    /**
+     * Initialize the population with the provided algorithm
+     */
     private void initialize(){
         for(int i = 0; i < populationSize; i ++)
             population[i] = initialize.initialize(this);
     }
 
+    /**
+     * Perform elitism and select the best k members from the previous population and place them in the new population
+     */
     private void elitism(){
         for(int i = 0; i < elitismRate; i ++) population[i] = null;
         outer:
@@ -102,6 +112,9 @@ public class GA {
         }
     }
 
+    /**
+     * Perform selection of the provided type to fill out the remainder of the population
+     */
     private void selection(){
         var idxFrom = Math.min(elitismRate, populationSize);
         for(int i = idxFrom; i < populationSize; i ++){
@@ -109,6 +122,9 @@ public class GA {
         }
     }
 
+    /**
+     * Performs crossover on all chromosomes but the elites at the specified rate using the specified algorithm.
+     */
     private void crossover(){
         var idxFrom = Math.min(elitismRate, populationSize);
         for(int i = idxFrom; i < populationSize; i ++){
@@ -121,6 +137,10 @@ public class GA {
         }
     }
 
+    /**
+     * Mutate individuals in the population except the elites using the specified mutation algorithm
+     * at the specified mutation rate.
+     */
     private void mutation(){
         var idxFrom = Math.min(elitismRate, populationSize);
         for(int i = idxFrom; i < populationSize; i ++){
@@ -129,6 +149,9 @@ public class GA {
         }
     }
 
+    /**
+     * Evaluate and report the statistics for this population. return the individual with the highest fitness.
+     */
     private Chromosome evaluate(){
         var stat = new GenerationStat(population);
         if(statConsumer != null)
@@ -140,7 +163,9 @@ public class GA {
         return Arrays.stream(prevPopulation).max(cmp).orElse(null);
     }
 
-
+    /**
+     * A random number generator with wrapper functions for the GA
+     */
     public static final class GaRNG{
         Random rand;
         public GaRNG(long seed){

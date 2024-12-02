@@ -7,6 +7,9 @@ import java.util.stream.Stream;
 
 public class Util {
 
+    /**
+     * Something that holds two somethings
+     */
     public static final class Tuple<T1, T2>{
         public T1 t1;
         public T2 t2;
@@ -35,6 +38,9 @@ public class Util {
         }
     }
 
+    /**
+     * Something that holds FOUR somethings
+     */
     public static final class QuaTuple<T1, T2, T3, T4>{
         public T1 t1;
         public T2 t2;

@@ -12,7 +12,12 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
-public class Chromosome implements Comparable<Chromosome> {
+/**
+ * A chromosome represents a potential solution to our problem.
+ * <br/>
+ * Once a chromosome is created it is immutable and cannot be changed.
+ */
+public class Chromosome {
 
     private final Gene[] genes;
     public final double fitness;
@@ -25,6 +30,9 @@ public class Chromosome implements Comparable<Chromosome> {
         this.fitness = ga.fitness.normalize(this.rawFitness);
     }
 
+    /**
+     * Constructs a completely randomized chromosome
+     */
     public static Chromosome random(GA ga){
         var genes = new Gene[ga.problemSet.courses.size()];
         for(int i = 0; i < genes.length; i ++){
@@ -37,10 +45,16 @@ public class Chromosome implements Comparable<Chromosome> {
         return new Chromosome(genes, ga);
     }
 
+    /**
+     * @return A stream of all the genes in this chromosome
+     */
     public Stream<Gene> genes(){
         return Arrays.stream(this.genes);
     }
 
+    /**
+     * A weighted sum of the conflicts present in this chromosome
+     */
     public int conflicts(ProblemSet problemSet){
         int conflicts = 0;
 
@@ -72,6 +86,9 @@ public class Chromosome implements Comparable<Chromosome> {
         return conflicts;
     }
 
+    /**
+     * Crate a new chromosome which has a single gene in it randomly mutated
+     */
     public Chromosome singleGeneMutation(GA ga){
         var copy = genes.clone();
         copy[ga.rng.randomInt(copy.length)] = new Gene(
@@ -82,6 +99,9 @@ public class Chromosome implements Comparable<Chromosome> {
         return new Chromosome(copy, ga);
     }
 
+    /**
+     * Perform one point crossover on this and another chromosome creating two children as a result
+     */
     public Util.Tuple<Chromosome, Chromosome> onePointCrossover(Chromosome other, GA ga){
         var g1 = this.genes.clone();
         var g2 = other.genes.clone();
@@ -94,6 +114,10 @@ public class Chromosome implements Comparable<Chromosome> {
         return new Util.Tuple<>(new Chromosome(g1, ga), new Chromosome(g2, ga));
     }
 
+
+    /**
+     * Perform uniform crossover on this and another chromosome creating two children as a result
+     */
     public Util.Tuple<Chromosome, Chromosome> uniformCrossover(Chromosome other, GA ga){
         var g1 = this.genes.clone();
         var g2 = other.genes.clone();
@@ -107,6 +131,9 @@ public class Chromosome implements Comparable<Chromosome> {
         return new Util.Tuple<>(new Chromosome(g1, ga), new Chromosome(g2, ga));
     }
 
+    /**
+     * Perform best attempt crossover on this and another chromosome creating two children as a result
+     */
     public Util.Tuple<Chromosome, Chromosome> bestAttemptCrossover(Chromosome other, GA ga){
         var c1 = this.genes.clone();
         var c2 = other.genes.clone();
@@ -179,10 +206,5 @@ public class Chromosome implements Comparable<Chromosome> {
             }
         }
         return new Util.Tuple<>(new Chromosome(c1, ga), new Chromosome(c2, ga));
-    }
-
-    @Override
-    public int compareTo(Chromosome o) {
-        return Double.compare(this.fitness, o.fitness);
     }
 }

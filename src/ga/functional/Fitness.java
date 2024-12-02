@@ -15,6 +15,6 @@ public interface Fitness {
     }
 
     default Comparator<Chromosome> rank(ProblemSet ps){
-        return Chromosome::compareTo;
+        return Comparator.comparingDouble(c -> c.fitness);
     }
 }

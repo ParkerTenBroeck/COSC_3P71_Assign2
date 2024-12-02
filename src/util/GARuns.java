@@ -9,6 +9,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.stream.DoubleStream;
 
+/**
+ * A collection of data from many GA runs using different seeds but the same parameters.
+ */
 public class GARuns {
     public GAParameters params;
     public final ArrayList<GARun> runs = new ArrayList<>();
@@ -21,6 +24,9 @@ public class GARuns {
     public Statistics gen;
     public int run;
 
+    /**
+     * Basic statistics calculated for some provided list of doubles
+     */
     public static class Statistics{
         public double mean;
         public double median;
@@ -54,12 +60,16 @@ public class GARuns {
         }
     }
 
-    public static class Meow{
+    /**
+     * Given two sets of statistics perform a Z-Test on them and calculate z, p, and if the result is significant or not
+     * (p< 0.05)
+     */
+    public static class ZTest {
         public final double p;
         public final double z;
         public final boolean significant;
 
-        public Meow(Statistics s1, Statistics s2){
+        public ZTest(Statistics s1, Statistics s2){
             this.z = (s1.mean-s2.mean)/Math.sqrt(s1.std*s1.std/s1.values.length+s2.std*s2.std/s2.values.length);
 
             this.p = pValueFromZ(this.z);

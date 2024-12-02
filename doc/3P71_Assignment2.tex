@@ -77,12 +77,12 @@ Similarly to selection there is only one algorithm for mutation. The algorithm s
 \subsection{Crossover}
 Crossover can occurs between two individuals that were selected in the selection step. how often crossover happens is determined by the crossover rate parameter. If two individuals aren't selected then they are directly placed in the population. If they are then the specified crossover algorithm is ran on them and their resulting children are placed in the new population. Crossover does not mutate the elitism individuals. There are three available crossover algorithms, two are from class, one is a custom crossover operator designed specifically for this problem.
 
-\subsubsection{One Point Crossover} This crossover works by selecting a random index $i$ and swapping all genes after $i$. 
+\subsubsection{One Point Crossover} This crossover works by selecting a random index $i$ and swapping all genes after $i$ \cite[p. 17]{ga-tut1}. 
 \begin{center}
 \input{one_point_crossover_diagram}
 \end{center}
 
-\subsubsection{Uniform Crossover} This crossover randomly swaps genes at any given point. Each swap has an equal 50\% chance of occurring
+\subsubsection{Uniform Crossover} This crossover randomly swaps genes at any given point. Each swap has an equal 50\% chance of occurring \cite[p. 21-29]{ga-tut1}.
 \begin{center}
 \input{uniform_crossover}
 \end{center}
@@ -133,7 +133,7 @@ the results for each test will be outputed into the directory \texttt{runs} cont
 
 \section{Results}
 
-In all these tests the raw fitness(solid lines) is defined as \eqref{raw}, the closer to zero the better. And the normalized fitness(dotted lines) is defined as \eqref{normalized}, the closer to 100 the better. Each graph shows the max/average/min of the raw and normalized fitness. Because each configuration is ran 50 times with different seeds we take the average over all runs for every generation. if a run finishes before another, the final values it produced are used as the value for all further generations. A vertical line is shown when a particular run finishes with its generation number, seed number and final normalized fitness value.\\
+In all these tests the raw fitness(solid lines) is defined as \eqref{raw}, the closer to zero the better. And the normalized fitness(dotted lines) is defined as \eqref{normalized}, the closer to 100 the better. Each graph shows the max/average/min of the raw and normalized fitness. Because each configuration is ran 50 times with different seeds we take the average over all runs for every generation. If a run finishes before another, the final values it produced are used as the value for all further generations. A vertical line is shown when a particular run finishes with its generation number, seed number and final normalized fitness value.\\
 
 The parameters not listed for each test don't change and are as follows\\\\
 elitism rate: 1 individual\footnote{talked to Reginald and said I could use this value as I had already ran my tests using this parameter before he made the announcement}.\\
@@ -327,9 +327,8 @@ To conclude we ran and collected data on $1400$ individual GA runs over a wide a
 
 The best crossover is \texttt{BestAttempt} which outperforms every other configuration in all tests. Interestingly aside from a few exceptions when using \texttt{BestAttempt} crossover the crossover rate and mutation rate parameters tested didn't have an effect on the average completed generation.  
 
-\begin{thebibliography}{00}
-\bibitem{ga-tut1} Zachary McGovarin, Nick Aksamit, Genetic Algorithms Tutorial [Online]
-\end{thebibliography}
+\bibliographystyle{IEEEtran}
+\bibliography{bibi}
 
 \appendices
 \label{appendix:a}

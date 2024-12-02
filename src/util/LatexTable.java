@@ -1,5 +1,8 @@
 package util;
 
+/**
+ * A builder for a latex table
+ */
 public class LatexTable {
     StringBuilder table;
     boolean first;

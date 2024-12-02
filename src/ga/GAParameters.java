@@ -4,6 +4,9 @@ import data.ProblemSet;
 import ga.functional.*;
 import util.Util;
 
+/**
+ * all the parameters except for max generation and seed a GA will use.
+ */
 @SuppressWarnings("unused")
 public class GAParameters {
     public ProblemSet problemSet;

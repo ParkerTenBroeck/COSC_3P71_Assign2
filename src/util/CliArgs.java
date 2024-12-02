@@ -7,6 +7,9 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Parses and validates the CLI inputs for this program
+ */
 public class CliArgs {
     public long[] seeds;
     public boolean gui;
