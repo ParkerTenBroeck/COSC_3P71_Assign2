@@ -47,7 +47,7 @@ public class GARuns {
             }else if ((this.values.length&1) == 1){
                 median = this.values[this.values.length/2];
             }else{
-                median = (this.values[this.values.length/2]+this.values[this.values.length/2+1])/2;
+                median = (this.values[this.values.length/2]+this.values[this.values.length/2-1])/2;
             }
 
             if(this.values.length != 0){

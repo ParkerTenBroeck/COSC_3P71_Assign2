@@ -63,7 +63,7 @@ class Main {
         runFitness.entry("$\\sigma$");
         runFitness.nextRow();
         for(var run:runs){
-            runGens.entry("run"+run.run);
+            runGens.entry("config"+run.run);
             runGens.entry(String.format("$%.0f$", run.gen.min));
             runGens.entry(String.format("$%.0f$", run.gen.max));
             runGens.entry(String.format("$%.2f$", run.gen.mean));
@@ -71,7 +71,7 @@ class Main {
             runGens.entry(String.format("$%.3f$", run.gen.std));
             runGens.nextRow();
 
-            runFitness.entry("run"+run.run);
+            runFitness.entry("config"+run.run);
             runFitness.entry(String.format("$%.0f$", run.normalized.min));
             runFitness.entry(String.format("$%.0f$", run.normalized.max));
             runFitness.entry(String.format("$%.2f$", run.normalized.mean));
@@ -79,7 +79,7 @@ class Main {
             runFitness.entry(String.format("$%.3f$", run.normalized.std));
             runFitness.nextRow();
 
-            runParameters.entry("run"+run.run);
+            runParameters.entry("config"+run.run);
             runParameters.entry(String.format("$%.0f\\%%$", run.params.crossoverRate*100));
             runParameters.entry(String.format("$%.0f\\%%$", run.params.mutationRate*100));
             runParameters.entry(run.params.crossover.toString());
