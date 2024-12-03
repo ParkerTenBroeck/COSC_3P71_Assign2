@@ -8,6 +8,7 @@ import java.util.function.Consumer;
 
 public class GA {
 
+    public final long seed;
     private final int elitismRate;
     private final double crossoverRate;
     private final double mutationRate;
@@ -44,6 +45,7 @@ public class GA {
             Consumer<GenerationStat> statConsumer
     ) {
         this.rng = new GaRNG(seed);
+        this.seed = seed;
         prevPopulation = new Chromosome[populationSize];
         population = new Chromosome[populationSize];
         this.elitismRate = elitismRate;

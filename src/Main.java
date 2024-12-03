@@ -148,12 +148,6 @@ class Main {
      * @return A stream of results for all the permutations of parameters given the arguments
      */
     static Stream<GARuns> runConfigurations(CliArgs cli){
-        GAPopulationGraph window;
-        if(cli.gui) {
-            window = new GAPopulationGraph();
-        }else {
-            window = null;
-        }
 
         var paramGen = Stream.of(new GAParameters(cli.problemSet))
                 .flatMap(flat(cli.crossoverKinds::stream, (t, v) -> t.crossover = v))
@@ -166,11 +160,10 @@ class Main {
             .flatMap(flat(cli.fitnessKinds::stream, (t, v) -> t.fitness = v))
             .flatMap(flat(cli.mutationKinds::stream, (t, v) -> t.mutate = v));
 
-        var forkJoinPool = new ForkJoinPool(cli.seeds.length);
         var runNum = new AtomicInteger(1);
         return paramGen
                 .filter(v -> v.mutationRate != 0.01 || v.crossover == GAParameters.CrossoverKind.BestAttempt)
-                .map(params -> runConfiguration(forkJoinPool, window, params.clone(), runNum.getAndIncrement(), cli.generations, cli.seeds));
+                .map(params -> runConfiguration(params.clone(), runNum.getAndIncrement(), cli.generations, cli.seeds));
     }
 
     static <T, V> Function<T, Stream<T>> flat(Supplier<Stream<V>> in, BiConsumer<T, V> setter){
@@ -183,54 +176,64 @@ class Main {
     /**
      * @return  The stats for the GA runs from the provided parameters and seeds
      */
-    static GARuns runConfiguration(ForkJoinPool pool, GAPopulationGraph window, GAParameters params, int runNum, int generations, long[] seeds){
+    static GARuns runConfiguration(GAParameters params, int runNum, int generations, long[] seeds){
         var stats = new GARuns(params);
-        var graph = window==null?null:window.graph(Arrays.toString(seeds)+"\n"+params);
-        var averager = new AveragedQueue(seeds.length, average -> {
-            if(graph != null) graph.addDataPoint(average);
-            stats.averagedStats.add(average);
-        });
         System.out.println("Started run " + runNum);
 
-        pool.submit(() -> Arrays.stream(seeds).parallel().forEach(seed -> {
-            var run = stats.run(seed);
-            var consumer = averager.provider();
-            var result = new GA(
-                    seed, params.problemSet,
-                    params.elitismRate, params.crossoverRate, params.mutationRate, params.populationSize,
-                    params.initialize.initializer,
-                    params.select.selector,
-                    params.fitness.fitness,
-                    params.mutate.fitness,
-                    params.crossover.crossover,
-                    consumer
-            ).run(generations);
+        var configs = Arrays.stream(seeds).mapToObj(seed -> new Util.Tuple<>(new GA(
+                seed, params.problemSet,
+                params.elitismRate, params.crossoverRate, params.mutationRate, params.populationSize,
+                params.initialize.initializer,
+                params.select.selector,
+                params.fitness.fitness,
+                params.mutate.fitness,
+                params.crossover.crossover,
+                null
+        ), stats.run(seed))). toList();
+        configs.stream().map(t -> new Thread(() -> {
+            var c = t.t1;
+            var run = t.t2;
+            var result = c.run(generations);
             run.best = result.result;
             run.finished = params.fitness.fitness.complete(run.best.fitness);
             run.generationStats = result.stats;
-            System.out.println("\tFinished seed " + seed);
-
-            consumer.accept(null);
-            if(graph != null) {
-                graph.addVerticalLabel(
-                result.stats.size() - 1,
-                "G:" + (result.stats.size() - 1) +
-                    " S:" + seed +
-                    " F:" + Math.round(result.result.fitness)
-                );
+            System.out.println("\tFinished seed " + c.seed);
+        })).peek(Thread::start).toList().forEach(thread -> {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
             }
-        })).join();
+        });
+        var max = configs.stream().mapToInt(c -> c.t2.generationStats.size()).max().orElse(0);
+        var indecies = new int[configs.size()];
+
+        for(int c = 0; c < max; c ++){
+            var rawMin = 0.0;
+            var rawMax = 0.0;
+            var rawAvg = 0.0;
+            var norMin = 0.0;
+            var norMax = 0.0;
+            var norAvg = 0.0;
+
+            var count = configs.size();
+            for(int i = 0; i < count; i ++){
+                var result = configs.get(i).t2.generationStats.get(indecies[i]);
+                indecies[i] = Math.min(indecies[i]+1, configs.get(i).t2.generationStats.size()-1);
+
+                rawMin += result.minRawFit;
+                rawMax += result.maxRawFit;
+                rawAvg += result.averageRawFit;
+                norMin += result.minFit;
+                norMax += result.maxFit;
+                norAvg += result.averageFit;
+            }
+            stats.averagedStats.add(new GenerationStat(norMin/count,norMax/count,norAvg/count,rawMin/count,rawMax/count,rawAvg/count));
+
+        }
 
         stats.run = runNum;
         stats.calculateFinalResults();
-
-        if(graph != null) {
-            graph.showResults(
-                    "Average Fitness: " + stats.normalized.mean +
-                    "\nCompleted: " + stats.completed +
-                    "\nAverage Completed Generation: " + stats.completedGen.mean
-            );
-        }
 
         return stats;
     }
