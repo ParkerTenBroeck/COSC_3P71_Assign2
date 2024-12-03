@@ -178,7 +178,7 @@ class Main {
      */
     static GARuns runConfiguration(GAParameters params, int runNum, int generations, long[] seeds){
         var stats = new GARuns(params);
-        System.out.println("Started run " + runNum);
+        System.out.println("Started run " + runNum + " " + params);
 
         var configs = Arrays.stream(seeds).mapToObj(seed -> new Util.Tuple<>(new GA(
                 seed, params.problemSet,

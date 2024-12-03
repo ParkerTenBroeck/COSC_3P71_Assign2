@@ -93,10 +93,11 @@ public class GA {
      * Perform elitism and select the best k members from the previous population and place them in the new population
      */
     private void elitism(){
-        for(int i = 0; i < elitismRate; i ++) population[i] = null;
+        var idxFrom = Math.min(elitismRate, populationSize);
+        for(int i = 0; i < idxFrom; i ++) population[i] = null;
         outer:
         for(int popIdx = 0; popIdx < populationSize; popIdx ++){
-            for(int elitIdx = 0; elitIdx < elitismRate; elitIdx ++){
+            for(int elitIdx = 0; elitIdx < idxFrom; elitIdx ++){
                 // if empty insert there
                 if(population[elitIdx]==null){
                     population[elitIdx] = prevPopulation[popIdx];
@@ -104,7 +105,7 @@ public class GA {
                 }
                 // if the new value is larger than the current elite value insert it moving everything else down
                 if(cmp.compare(prevPopulation[popIdx], population[elitIdx])>0){
-                    for(int insertIdx = elitismRate-1; insertIdx > elitIdx+1; insertIdx --){
+                    for(int insertIdx = idxFrom-1; insertIdx != elitIdx; insertIdx --){
                         population[insertIdx] = population[insertIdx-1];
                     }
                     population[elitIdx] = prevPopulation[popIdx];
